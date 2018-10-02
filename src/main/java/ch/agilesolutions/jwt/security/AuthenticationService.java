@@ -7,6 +7,7 @@ import java.util.Date;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
@@ -15,7 +16,9 @@ import io.jsonwebtoken.SignatureAlgorithm;
 
 public class AuthenticationService {
   static final long EXPIRATIONTIME = 864_000_00; // 1 day in milliseconds
-  static final String SIGNINGKEY = "SecretKey";
+  
+  @Value("${security.krb.secretkey}")
+  static String SIGNINGKEY;
   static final String PREFIX = "Bearer";
 
   static public void addToken(HttpServletResponse res, String username) {

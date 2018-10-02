@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.BeanIds;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -16,7 +17,6 @@ import org.springframework.security.kerberos.authentication.KerberosAuthenticati
 import org.springframework.security.kerberos.authentication.KerberosServiceAuthenticationProvider;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosClient;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosTicketValidator;
-import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
 import org.springframework.security.kerberos.web.authentication.SpnegoEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -41,14 +41,17 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
-		http.csrf().disable().cors().and().authorizeRequests().antMatchers("/**").permitAll()
-				// .antMatchers("/h2-console").anonymous()
-				.anyRequest().authenticated().and()
+		http.csrf().disable()
+			.cors().and().
+		  	authorizeRequests()
+		  		.antMatchers("/").permitAll()
+				.antMatchers(HttpMethod.POST, "/login").permitAll().anyRequest().authenticated().and()
 				// Filter for the api/login requests
 				.addFilterBefore(spnegoAuthenticationProcessingFilter(authenticationManagerBean()),
 						UsernamePasswordAuthenticationFilter.class)
 				// Filter for other requests to check JWT in header
-				.addFilterBefore(new AuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+				.addFilterBefore(new AuthenticationFilter(),
+		                UsernamePasswordAuthenticationFilter.class);
 	}
 
 	@Bean
@@ -88,9 +91,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 	}
 
 	@Bean
-	public SpnegoAuthenticationProcessingFilter spnegoAuthenticationProcessingFilter(
+	public SpnegoAuthenticationFilter spnegoAuthenticationProcessingFilter(
 			AuthenticationManager authenticationManager) {
-		SpnegoAuthenticationProcessingFilter filter = new SpnegoAuthenticationProcessingFilter();
+		SpnegoAuthenticationFilter filter = new SpnegoAuthenticationFilter();
 		filter.setAuthenticationManager(authenticationManager);
 		return filter;
 	}
