@@ -1,4 +1,4 @@
-package ch.agilesolutions.jwt.security;
+package ch.agilesolutions.jwt.config;
 
 import java.util.Arrays;
 
@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.BeanIds;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -18,14 +17,17 @@ import org.springframework.security.kerberos.authentication.KerberosServiceAuthe
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosClient;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosTicketValidator;
 import org.springframework.security.kerberos.web.authentication.SpnegoEntryPoint;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import ch.agilesolutions.jwt.security.SpnegoAuthenticationFilter;
+import ch.agilesolutions.jwt.security.UserInfoService;
+
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+public class KerberosSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Value("${security.krb.keytab}")
 	private String keytab;
@@ -39,20 +41,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 		return super.authenticationManagerBean();
 	}
 
-	@Override
-	protected void configure(HttpSecurity http) throws Exception {
-		http.csrf().disable()
-			.cors().and().
-		  	authorizeRequests()
-		  		.antMatchers("/").permitAll()
-				.antMatchers(HttpMethod.POST, "/login").permitAll().anyRequest().authenticated().and()
-				// Filter for the api/login requests
-				.addFilterBefore(spnegoAuthenticationProcessingFilter(authenticationManagerBean()),
-						UsernamePasswordAuthenticationFilter.class)
-				// Filter for other requests to check JWT in header
-				.addFilterBefore(new AuthenticationFilter(),
-		                UsernamePasswordAuthenticationFilter.class);
-	}
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+
+ 	   http.antMatcher("/login").httpBasic()
+                 .and()
+                 .exceptionHandling()
+                .authenticationEntryPoint(spnegoEntryPoint())
+                .and().authorizeRequests().anyRequest().authenticated()
+                 .and()
+              .addFilterBefore(spnegoAuthenticationFilter(authenticationManagerBean()),
+                              WebAsyncManagerIntegrationFilter.class);
+    }
+
 
 	@Bean
 	CorsConfigurationSource corsConfigurationSource() {
@@ -91,7 +92,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 	}
 
 	@Bean
-	public SpnegoAuthenticationFilter spnegoAuthenticationProcessingFilter(
+	public SpnegoAuthenticationFilter spnegoAuthenticationFilter(
 			AuthenticationManager authenticationManager) {
 		SpnegoAuthenticationFilter filter = new SpnegoAuthenticationFilter();
 		filter.setAuthenticationManager(authenticationManager);
